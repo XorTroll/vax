@@ -1,0 +1,6 @@
+build/
+lib/
+*.elf
+*.nso
+*.npdm
+*.nsp
