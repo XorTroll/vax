@@ -29,11 +29,6 @@ namespace vax::mod {
             return addr;
         }
 
-        u8 *g_BootModule = nullptr;
-        size_t g_BootModuleSize = 0;
-
-        constexpr const char BootModulePath[] = "sdmc:/vax/vboot.elf";
-
         ams::Result LoadModuleData(const char *mod_path, u8 *&out_mod_buf, size_t &out_mod_size) {
             fs::FileHandle mod_file;
             R_TRY(fs::OpenFile(&mod_file, mod_path, fs::OpenMode_Read));
@@ -43,12 +38,17 @@ namespace vax::mod {
             R_TRY(fs::GetFileSize(&mod_size, mod_file));
 
             out_mod_size = mod_size;
-            out_mod_buf = new u8[out_mod_size]();
+            out_mod_buf = new u8[out_mod_size];
 
             R_TRY(fs::ReadFile(mod_file, 0, out_mod_buf, out_mod_size));
 
             return ResultSuccess();
         }
+
+        u8 *g_BootModule = nullptr;
+        size_t g_BootModuleSize = 0;
+
+        constexpr const char BootModulePath[] = "sdmc:/vax/vboot.elf";
 
         inline ams::Result EnsureBootModuleLoaded() {
             if(g_BootModule == nullptr) {
@@ -101,10 +101,10 @@ namespace vax::mod {
         // todo: check this bufs arent already allocated!
         g_BootRegionTextBackupSize = text_mem_size;
         g_BootRegionTextBackupAddress = text_addr;
-        g_BootRegionTextBackup = new u8[g_BootRegionTextBackupSize]();
+        g_BootRegionTextBackup = new u8[g_BootRegionTextBackupSize];
         g_BootRegionDataBackupSize = data_mem_size;
         g_BootRegionDataBackupAddress = data_addr;
-        g_BootRegionDataBackup = new u8[g_BootRegionDataBackupSize]();
+        g_BootRegionDataBackup = new u8[g_BootRegionDataBackupSize];
 
         // We're writing the boot module over the process's memory
         // Since the game will run after we load all the modules (which will be loaded in the heap), backup that process memory and restore it later when boot finishes
