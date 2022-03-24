@@ -184,36 +184,24 @@ namespace {
             VMOD_RC_ASSERT(vax::sf::loader::Initialize());
             VMOD_ON_SCOPE_EXIT { vax::sf::loader::Finalize(); };
 
-            char modules_path[FS_MAX_PATH] = {};
-            std::snprintf(modules_path, sizeof(modules_path), "sdmc:/atmosphere/contents/%016lX/vax", program_id);
-            auto modules_dir = opendir(modules_path);
-            if(modules_dir) {
-                while(true) {
-                    auto dir_entry = readdir(modules_dir);
-                    if(dir_entry == nullptr) {
-                        break;
-                    }
+            u64 module_count;
+            VMOD_RC_ASSERT(vax::sf::loader::GetProcessModuleCount(module_count));
 
-                    if(dir_entry->d_type & DT_REG) {
-                        char module_file[FS_MAX_PATH] = {};
-                        std::snprintf(module_file, sizeof(module_file), "%s/%s", modules_path, dir_entry->d_name);
+            for(u64 i = 0; i < module_count; i++) {
+                VMOD_SD_LOG_LN("vloader --- loading module %ld!", i);
 
-                        VMOD_SD_LOG_LN("vloader --- loading module: '%s'!", module_file);
+                const auto cur_heap_addr = UpdateHeap();
+                const auto load_addr = FindNextModuleLoadAddress(cur_heap_addr);
 
-                        const auto cur_heap_addr = UpdateHeap();
-                        const auto load_addr = FindNextModuleLoadAddress(cur_heap_addr);
+                u64 start_addr;
+                size_t mod_size;
+                VMOD_RC_ASSERT(vax::sf::loader::LoadProcessModule(i, load_addr, start_addr, mod_size));
 
-                        u64 start_addr;
-                        size_t mod_size;
-                        VMOD_RC_ASSERT(vax::sf::loader::LoadModule(module_file, sizeof(module_file), load_addr, start_addr, mod_size));
+                RegisterLoadedModule(start_addr);
+                loaded_module_addrs.push_back(start_addr);
+                g_ModuleAreaSize += mod_size;
 
-                        RegisterLoadedModule(start_addr);
-                        loaded_module_addrs.push_back(start_addr);
-                        g_ModuleAreaSize += mod_size;
-
-                        VMOD_SD_LOG_LN("vloader --- loaded module!");
-                    }
-                }
+                VMOD_SD_LOG_LN("vloader --- loaded module!");
             }
         }
 
@@ -363,7 +351,7 @@ namespace vmod {
         VMOD_RC_ASSERT(sf::fs::MountSdCard());
         VMOD_ON_SCOPE_EXIT { sf::fs::UnmountSdCard(); };
 
-        VMOD_ASSERT_TRUE(sdlog::Initialize("sdmc:/vloader_log.log"));
+        VMOD_ASSERT_TRUE(sdlog::Initialize("sdmc:/vax/vloader.log"));
         VMOD_ON_SCOPE_EXIT { sdlog::Finalize(); };
 
         VMOD_SD_LOG_LN("vloader --- alive! main thread handle: 0x%X", vmod::crt0::GetLoaderContext()->main_thread_h);

@@ -39,7 +39,7 @@ namespace vax::sf {
         R_TRY(svc::DebugActiveProcess(&debug_h, static_cast<u64>(client_pid.GetValue())));
         ON_SCOPE_EXIT { svc::CloseHandle(debug_h); };
 
-        auto tmp_copy_buf = new u8[size]();
+        auto tmp_copy_buf = new u8[size];
         ON_SCOPE_EXIT { delete[] tmp_copy_buf; };
         R_TRY(svc::ReadDebugProcessMemory(reinterpret_cast<uintptr_t>(tmp_copy_buf), debug_h, src_addr, size));
         R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(tmp_copy_buf), dst_addr, size));

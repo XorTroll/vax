@@ -1,8 +1,8 @@
-#include <vax/elf/elf_Loader.hpp>
+#include <vax/mod/mod_Loader.hpp>
 #include <ext/elf_parser.hpp>
 #include <vax/log/log_Logger.hpp>
 
-namespace vax::elf {
+namespace vax::mod {
 
     namespace {
 
@@ -32,7 +32,7 @@ namespace vax::elf {
         u8 *g_BootModule = nullptr;
         size_t g_BootModuleSize = 0;
 
-        constexpr const char BootModulePath[] = "sdmc:/vboot.elf";
+        constexpr const char BootModulePath[] = "sdmc:/vax/vboot.elf";
 
         ams::Result LoadModuleData(const char *mod_path, u8 *&out_mod_buf, size_t &out_mod_size) {
             fs::FileHandle mod_file;
@@ -70,6 +70,10 @@ namespace vax::elf {
         u8 *g_BootRegionDataBackup = nullptr;
         u64 g_BootRegionDataBackupAddress = 0;
         size_t g_BootRegionDataBackupSize = 0;
+
+        inline void MakeProcessModulesPath(char (&out_str)[FS_MAX_PATH], const u64 program_id) {
+            std::snprintf(out_str, sizeof(out_str), "sdmc:/atmosphere/contents/%016lX/vax", program_id);
+        }
 
     }
 
@@ -110,6 +114,26 @@ namespace vax::elf {
 
         R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(text_segment.data), text_addr, text_file_size));
         R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(data_segment.data), data_addr, data_file_size));
+
+        return ResultSuccess();
+    }
+
+    ams::Result RestoreBootRegionBackup(const u64 pid) {
+        svc::Handle debug_h;
+        R_TRY(svc::DebugActiveProcess(&debug_h, pid));
+        ON_SCOPE_EXIT { svc::CloseHandle(debug_h); };
+
+        // todo: check that bufs arent null
+        R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(g_BootRegionTextBackup), g_BootRegionTextBackupAddress, g_BootRegionTextBackupSize));
+        R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(g_BootRegionDataBackup), g_BootRegionDataBackupAddress, g_BootRegionDataBackupSize));
+        
+        delete[] g_BootRegionTextBackup;
+        g_BootRegionTextBackupAddress = 0;
+        g_BootRegionTextBackupSize = 0;
+
+        delete[] g_BootRegionDataBackup;
+        g_BootRegionDataBackupAddress = 0;
+        g_BootRegionDataBackupSize = 0;
 
         return ResultSuccess();
     }
@@ -196,22 +220,52 @@ namespace vax::elf {
         return ResultSuccess();
     }
 
-    ams::Result RestoreBootRegionBackup(const u64 pid) {
-        svc::Handle debug_h;
-        R_TRY(svc::DebugActiveProcess(&debug_h, pid));
-        ON_SCOPE_EXIT { svc::CloseHandle(debug_h); };
+    u64 GetProcessModuleCount(const u64 program_id) {
+        char modules_dir_path[FS_MAX_PATH];
+        MakeProcessModulesPath(modules_dir_path, program_id);
 
-        // todo: check that bufs arent null
-        R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(g_BootRegionTextBackup), g_BootRegionTextBackupAddress, g_BootRegionTextBackupSize));
-        R_TRY(svc::WriteDebugProcessMemory(debug_h, reinterpret_cast<uintptr_t>(g_BootRegionDataBackup), g_BootRegionDataBackupAddress, g_BootRegionDataBackupSize));
-        
-        delete[] g_BootRegionTextBackup;
-        g_BootRegionTextBackupAddress = 0;
-        g_BootRegionTextBackupSize = 0;
+        fs::DirectoryHandle modules_dir;
+        if(R_SUCCEEDED(fs::OpenDirectory(&modules_dir, modules_dir_path, fs::OpenDirectoryMode_File))) {
+            ON_SCOPE_EXIT { fs::CloseDirectory(modules_dir); };
 
-        delete[] g_BootRegionDataBackup;
-        g_BootRegionDataBackupAddress = 0;
-        g_BootRegionDataBackupSize = 0;
+            s64 entry_file_count;
+            fs::GetDirectoryEntryCount(&entry_file_count, modules_dir);
+            return entry_file_count;
+        }
+
+        return 0;
+    }
+
+    ams::Result LoadProcessModule(const svc::Handle process_h, const u64 pid, const u64 load_heap_addr, const u64 mod_idx, u64 &out_start_addr, size_t &out_size) {
+        u64 program_id;
+        R_TRY(svc::GetInfo(&program_id, svc::InfoType_ProgramId, process_h, 0));
+
+        char modules_dir_path[FS_MAX_PATH] = {};
+        MakeProcessModulesPath(modules_dir_path, program_id);
+
+        fs::DirectoryHandle modules_dir;
+        R_TRY(fs::OpenDirectory(&modules_dir, modules_dir_path, fs::OpenDirectoryMode_File));
+        ON_SCOPE_EXIT { fs::CloseDirectory(modules_dir); };
+
+        u64 idx = 0;
+        while(true) {
+            s64 dummy_count;
+            fs::DirectoryEntry entry;
+            R_TRY(fs::ReadDirectory(&dummy_count, &entry, modules_dir, 1));
+            if(dummy_count != 1) {
+                break;
+            }
+
+            if(idx == mod_idx) {
+                char module_path[FS_MAX_PATH] = {};
+                std::snprintf(module_path, sizeof(module_path), "%s/%s", modules_dir_path, entry.name);
+
+                R_TRY(LoadModule(process_h, pid, load_heap_addr, module_path, out_start_addr, out_size));
+                break;
+            }
+
+            idx++;
+        }
 
         return ResultSuccess();
     }

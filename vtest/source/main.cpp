@@ -92,7 +92,7 @@ namespace vmod {
         VMOD_RC_ASSERT(sf::fs::MountSdCard());
         VMOD_ON_SCOPE_EXIT { sf::fs::UnmountSdCard(); };
 
-        VMOD_ASSERT_TRUE(sdlog::Initialize("sdmc:/vtest_log.log"));
+        VMOD_ASSERT_TRUE(sdlog::Initialize("sdmc:/vtest.log"));
         VMOD_ON_SCOPE_EXIT { sdlog::Finalize(); };
 
         VMOD_SD_LOG_LN("vtest --- alive! main thread handle: 0x%X", vmod::crt0::GetLoaderContext()->main_thread_h);

@@ -1,6 +1,6 @@
 #include <vax/sf/sf_BootService.hpp>
 #include <vax/log/log_Logger.hpp>
-#include <vax/elf/elf_Loader.hpp>
+#include <vax/mod/mod_Loader.hpp>
 
 using namespace ams;
 
@@ -8,7 +8,7 @@ namespace vax::sf {
 
     namespace {
 
-        constexpr const char LoaderModulePath[] = "sdmc:/vloader.elf";
+        constexpr const char LoaderModulePath[] = "sdmc:/vax/vloader.elf";
 
     }
 
@@ -17,7 +17,7 @@ namespace vax::sf {
 
         u64 start_addr;
         size_t dummy_size;
-        R_TRY(elf::LoadModule(process_h.GetOsHandle(), static_cast<u64>(client_pid.GetValue()), dest_heap_addr, LoaderModulePath, start_addr, dummy_size));
+        R_TRY(mod::LoadModule(process_h.GetOsHandle(), static_cast<u64>(client_pid.GetValue()), dest_heap_addr, LoaderModulePath, start_addr, dummy_size));
 
         out_start_addr.SetValue(start_addr);
         return ResultSuccess();

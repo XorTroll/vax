@@ -6,7 +6,7 @@ namespace vax::log {
 
     namespace {
 
-        constexpr const char LogFile[] = "sdmc:/vax_log.log";
+        constexpr const char LogFile[] = "sdmc:/vax/vax.log";
 
         os::Mutex g_LogFileLock(false);
         fs::FileHandle g_LogFile;

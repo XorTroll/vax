@@ -2,7 +2,7 @@
 #include <vax/sf/sf_BootService.hpp>
 #include <vax/sf/sf_LoaderService.hpp>
 #include <vax/sf/sf_ModuleService.hpp>
-#include <vax/elf/elf_Loader.hpp>
+#include <vax/mod/mod_Loader.hpp>
 #include <vax/log/log_Logger.hpp>
 
 using namespace ams;
@@ -86,30 +86,10 @@ namespace {
 
     bool g_InBootProcess = false;
 
-    /*
-    ams::Result LoadPlugin(const svc::Handle debug_h, const char *plugin_file_path, u64 &out_start_addr) {
-        fs::FileHandle plugin_file;
-        R_TRY(fs::OpenFile(&plugin_file, plugin_file_path, fs::OpenMode_Read));
-        ON_SCOPE_EXIT { fs::CloseFile(plugin_file); };
-
-        s64 plugin_size;
-        R_TRY(fs::GetFileSize(&plugin_size, plugin_file));
-
-        auto plugin_buf = new u8[plugin_size]();
-        ON_SCOPE_EXIT { delete[] plugin_buf; };
-
-        R_TRY(fs::ReadFile(plugin_file, 0, plugin_buf, plugin_size));
-
-        R_TRY(vax::elf::LoadElfDebug(debug_h, out_start_addr, plugin_buf, plugin_size));
-
-        return ResultSuccess();
-    }
-    */
-
     void InjectProcess(const svc::Handle debug_h, const u64 program_id, const u64 thread_id) {
         AMS_UNUSED(program_id);
         u64 boot_start_addr;
-        R_ABORT_UNLESS(vax::elf::LoadBootModule(debug_h, boot_start_addr));
+        R_ABORT_UNLESS(vax::mod::LoadBootModule(debug_h, boot_start_addr));
         VAX_LOG("Loaded vboot module at 0x%lX", boot_start_addr);
 
         svc::ThreadContext thread_ctx;
@@ -141,8 +121,9 @@ namespace {
             if(debug_event_info.type == svc::DebugEvent_CreateProcess) {
                 const auto create_process_info = debug_event_info.info.create_process;
 
-                if(create_process_info.program_id == 0x01007EF00011E000) {
-                    VAX_LOG("Found BOTW!");
+                const auto mod_count = vax::mod::GetProcessModuleCount(create_process_info.program_id);
+                if(mod_count > 0) {
+                    VAX_LOG("Found %ld modules for process %016lX --- starting injection...", mod_count, create_process_info.program_id);
                     program_id = create_process_info.program_id;
                 }
             }
