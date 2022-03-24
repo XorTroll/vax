@@ -17,7 +17,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 BUILD		:=	build
 TARGET		:=  vmod
-SOURCES		:=	source source/ext source/vmod source/vmod/dyn source/vmod/mem source/vmod/sf source/vmod/sf/fs source/vmod/sdlog source/vsys source/vsys/sf source/vsys/sf/mod
+SOURCES		:=	source source/ext source/vmod source/vmod/dyn source/vmod/mem source/vmod/sf source/vmod/sf/fs source/vmod/sdlog source/vax source/vax/sf source/vax/sf/mod
 INCLUDES	:=	include
 OUT_LIB		:=	lib
 

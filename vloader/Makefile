@@ -19,7 +19,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/vloader source/vsys source/vsys/sf source/vsys/sf/loader
+SOURCES		:=	source source/vloader source/vax source/vax/sf source/vax/sf/loader
 DATA		:=	data
 INCLUDES	:=	include
 EXEFS_SRC	:=	exefs_src

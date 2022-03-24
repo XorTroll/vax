@@ -4,7 +4,6 @@
 #include <vmod/vmod_Attributes.hpp>
 #include <vmod/vmod_Crt0.hpp>
 #include <sys/iosupport.h>
-#include <vsys/sf/mod/mod_ModuleService.hpp>
 
 extern "C" {
 

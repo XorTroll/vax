@@ -2,7 +2,7 @@
 
 `vax` is a custom module/code injection ecosystem for Nintendo Switch games.
 
-It's essentially a C++ port/improved version of [SaltyNX]().
+It's essentially a C++ port/improved version of [SaltyNX](https://github.com/masagrator/SaltyNX).
 
 ## Code injection procedure
 

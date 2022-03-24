@@ -1,5 +1,5 @@
-#include <vsys/sf/mod/mod_ModuleService.hpp>
-#include <vsys/sf/loader/loader_LoaderService.hpp>
+#include <vax/sf/mod/mod_ModuleService.hpp>
+#include <vax/sf/loader/loader_LoaderService.hpp>
 #include <vmod/vmod_Assert.hpp>
 #include <vmod/vmod_Size.hpp>
 #include <vmod/dyn/dyn_Module.hpp>
@@ -181,8 +181,8 @@ namespace {
 
         std::vector<u64> loaded_module_addrs;
         {
-            VMOD_RC_ASSERT(vsys::sf::loader::Initialize());
-            VMOD_ON_SCOPE_EXIT { vsys::sf::loader::Finalize(); };
+            VMOD_RC_ASSERT(vax::sf::loader::Initialize());
+            VMOD_ON_SCOPE_EXIT { vax::sf::loader::Finalize(); };
 
             char modules_path[FS_MAX_PATH] = {};
             std::snprintf(modules_path, sizeof(modules_path), "sdmc:/atmosphere/contents/%016lX/vax", program_id);
@@ -205,7 +205,7 @@ namespace {
 
                         u64 start_addr;
                         size_t mod_size;
-                        VMOD_RC_ASSERT(vsys::sf::loader::LoadModule(module_file, sizeof(module_file), load_addr, start_addr, mod_size));
+                        VMOD_RC_ASSERT(vax::sf::loader::LoadModule(module_file, sizeof(module_file), load_addr, start_addr, mod_size));
 
                         RegisterLoadedModule(start_addr);
                         loaded_module_addrs.push_back(start_addr);
@@ -280,10 +280,10 @@ namespace {
 
         auto copy_addr = addr;
         if(addr & 0x4) {
-            VMOD_RC_TRY(vsys::sf::mod::MemoryCopy(copy_addr, reinterpret_cast<u64>(NopInstruction), sizeof(NopInstruction)));
+            VMOD_RC_TRY(vax::sf::mod::MemoryCopy(copy_addr, reinterpret_cast<u64>(NopInstruction), sizeof(NopInstruction)));
             copy_addr += sizeof(NopInstruction);
         }
-        VMOD_RC_TRY(vsys::sf::mod::MemoryCopy(copy_addr, reinterpret_cast<u64>(patch_code), sizeof(patch_code)));
+        VMOD_RC_TRY(vax::sf::mod::MemoryCopy(copy_addr, reinterpret_cast<u64>(patch_code), sizeof(patch_code)));
 
         return 0;
     }
@@ -313,8 +313,8 @@ namespace {
     }
 
     void PatchHeapSizeSyscalls() {
-        VMOD_RC_ASSERT(vsys::sf::mod::Initialize());
-        VMOD_ON_SCOPE_EXIT { vsys::sf::mod::Finalize(); };
+        VMOD_RC_ASSERT(vax::sf::mod::Initialize());
+        VMOD_ON_SCOPE_EXIT { vax::sf::mod::Finalize(); };
 
         const auto set_heap_size_addr = vmod::dyn::FindCodeAddress(SetHeapSizeInvokeCode, sizeof(SetHeapSizeInvokeCode));
         const auto get_info_addr = vmod::dyn::FindCodeAddress(GetInfoInvokeCode, sizeof(GetInfoInvokeCode));
@@ -369,12 +369,12 @@ namespace vmod {
         VMOD_SD_LOG_LN("vloader --- alive! main thread handle: 0x%X", vmod::crt0::GetLoaderContext()->main_thread_h);
 
         {
-            VMOD_RC_ASSERT(vsys::sf::loader::Initialize());
-            VMOD_ON_SCOPE_EXIT { vsys::sf::loader::Finalize(); };
+            VMOD_RC_ASSERT(vax::sf::loader::Initialize());
+            VMOD_ON_SCOPE_EXIT { vax::sf::loader::Finalize(); };
 
-            VMOD_RC_ASSERT(vsys::sf::loader::NotifyBootFinished());
+            VMOD_RC_ASSERT(vax::sf::loader::NotifyBootFinished());
         }
-        VMOD_SD_LOG_LN("vloader --- notified vsys that vboot finished!");
+        VMOD_SD_LOG_LN("vloader --- notified vax that vboot finished!");
 
         PatchHeapSizeSyscalls();
         VMOD_SD_LOG_LN("vloader --- heap-size syscalls patched!");

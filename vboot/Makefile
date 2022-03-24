@@ -19,7 +19,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/vboot source/vboot/log source/vsys/sf/boot source/vsys/sf/mod
+SOURCES		:=	source source/vboot source/vboot/log source/vax source/vax/sf source/vax/sf/boot
 DATA		:=	data
 INCLUDES	:=	include
 EXEFS_SRC	:=	exefs_src
