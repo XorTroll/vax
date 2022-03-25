@@ -3,7 +3,7 @@
 #include <vmod/vmod_Size.hpp>
 #include <vmod/vmod_Attributes.hpp>
 #include <vmod/vmod_Crt0.hpp>
-#include <sys/iosupport.h>
+#include <vmod/tlr/tlr_ThreadLocalRegion.hpp>
 
 extern "C" {
 
@@ -78,6 +78,8 @@ extern "C" {
         vmod::InitializeOwnHeap(heap_addr, heap_size);
         fake_heap_start = heap_addr;
         fake_heap_end = heap_addr + heap_size;
+
+        VMOD_ASSERT_TRUE(vmod::tlr::GetThreadLocalRegion()->IsLibnxFormat());
 
         vmod::OnStartup(g_LoaderContext);
 

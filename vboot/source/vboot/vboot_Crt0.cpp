@@ -1,7 +1,10 @@
 #include <vmod/vmod_Assert.hpp>
 #include <vmod/vmod_Crt0.hpp>
+#include <vmod/tlr/tlr_ThreadLocalRegion.hpp>
 
 extern "C" {
+
+    u32 __nx_fs_num_sessions = 1;
 
     int main() {}
     int _DYNAMIC;
@@ -23,12 +26,20 @@ namespace {
 
     vmod::crt0::LoaderContext g_TempContext;
 
+    vmod::tlr::ThreadLocalRegion g_TlrBackup;
+    u8 g_TlsTp[0x100] = {};
+
 }
 
 extern "C" {
 
     void __vboot_init(Handle main_thread_h) {
         g_MainThreadHandle = main_thread_h;
+
+        g_TlrBackup = vmod::tlr::BackupThreadLocalRegion();
+        VMOD_ASSERT_TRUE(!g_TlrBackup.IsLibnxFormat());
+        VMOD_ASSERT_TRUE(!g_TlrBackup.IsNintendoFormat());
+        vmod::tlr::ConvertThreadLocalRegionToLibnxFormat(g_TlsTp, g_MainThreadHandle);
     }
 
     NORETURN void __vboot_exit() {

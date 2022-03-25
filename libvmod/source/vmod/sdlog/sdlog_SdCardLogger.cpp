@@ -5,22 +5,27 @@ namespace vmod::sdlog {
 
     namespace {
 
-        FILE *g_LogFile;
+        FsFile g_LogFile;
+        u64 g_LogFileOffset;
 
     }
 
-    bool Initialize(const char *log_file_path) {
-        g_LogFile = fopen(log_file_path, "wb");
-        return g_LogFile != nullptr;
+    Result Initialize(const char (&log_file_path)[FS_MAX_PATH], FsFileSystem &sd_fs) {
+        fsFsDeleteFile(&sd_fs, log_file_path);
+        fsFsCreateFile(&sd_fs, log_file_path, 0, 0);
+        VMOD_RC_TRY(fsFsOpenFile(&sd_fs, log_file_path, FsOpenMode_Write | FsOpenMode_Append, &g_LogFile));
+
+        g_LogFileOffset = 0;
+        return 0;
     }
 
     void Finalize() {
-        fclose(g_LogFile);
+        fsFileClose(&g_LogFile);
     }
 
     void LogBuffer(const char *buf, const size_t buf_size) {
-        fwrite(buf, buf_size, 1, g_LogFile);
-        fflush(g_LogFile);
+        VMOD_RC_ASSERT(fsFileWrite(&g_LogFile, g_LogFileOffset, buf, buf_size, FsWriteOption_Flush));
+        g_LogFileOffset += buf_size;
     }
 
 }

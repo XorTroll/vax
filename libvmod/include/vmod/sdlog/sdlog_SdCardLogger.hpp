@@ -5,7 +5,7 @@
 
 namespace vmod::sdlog {
 
-    bool Initialize(const char *log_file_path);
+    Result Initialize(const char (&log_file_path)[FS_MAX_PATH], FsFileSystem &sd_fs);
     void Finalize();
 
     void LogBuffer(const char *buf, const size_t buf_size);

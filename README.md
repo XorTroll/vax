@@ -65,8 +65,6 @@ Custom modules must be compiled using `libvmod` libs, which are the base libs fo
 Custom modules have a certain set of limitations:
 
 - Services must not be accessed the usual way: they must be obtained through `vax:mod` (more specifically by `vmod::sf::GetService(...)` or dedicated lib code, like `vmod::fs` for FS code)
-- Thread/anything involving TLS must not be touched while in-game, but on the module's main routine (which, as explained above, gets called before the game has even started) it might not suppose any problems. However, better to fully avoid using it.
-  - For instance, this implies that thread creation MUST be done using the game's thread code.
-  - This is all due to libnx's TLs and Nintendo's TLS implementations being completely incompatible.
+- Anything which internally requires libnx-style TLR (essentially many standard C calls, like s*printfs, FS api, etc..., plus a big chunk of libnx's code) should be avoided or wrapped using the `VMOD_DO_WITH_LIBNX_TLR` macro, which executes the code inside temporarily swapping the game's TLR with a libnx-styled one.
 
 > TODO: continue with this

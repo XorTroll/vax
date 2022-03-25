@@ -6,53 +6,9 @@
 #include <vmod/sdlog/sdlog_SdCardLogger.hpp>
 #include <vmod/vmod_Crt0.hpp>
 #include <vmod/vmod_Scope.hpp>
-#include <vmod/sf/fs/fs_SdCard.hpp>
-#include <dirent.h>
+#include <vmod/sf/fs/fs_FileSystem.hpp>
+#include <vmod/tlr/tlr_ThreadLocalRegion.hpp>
 #include <vector>
-
-namespace {
-
-    struct LibnxThreadVars {
-        u32 magic;
-        Handle thread_h;
-        Thread *thread_ptr;
-        _reent *reent;
-        void *tls_tp;
-
-        static constexpr u32 Magic = 0x21545624; // '!TV$'
-    };
-    static_assert(sizeof(LibnxThreadVars) == 0x20);
-
-    inline LibnxThreadVars *GetLibnxThreadVars() {
-        return reinterpret_cast<LibnxThreadVars*>(reinterpret_cast<u8*>(armGetTls()) + 0x200 - sizeof(LibnxThreadVars));
-    }
-
-    LibnxThreadVars g_TlsVarsBackup;
-
-    u8 g_DummyTlsTp[4_KB];
-
-    void StubLibnxThreadVars() {
-        // Note: this stub is only meant for newlib/libc stuff to work properly, thread/TLS/etc stuff should NOT be touched from libnx code
-
-        // Backup current vars/TLS
-        auto thr_vars = GetLibnxThreadVars();
-        g_TlsVarsBackup = *thr_vars;
-
-        thr_vars->magic = LibnxThreadVars::Magic;
-        thr_vars->thread_h = vmod::crt0::GetLoaderContext()->main_thread_h;
-        thr_vars->thread_ptr = nullptr;
-        thr_vars->reent = _impure_ptr;
-        thr_vars->tls_tp = g_DummyTlsTp;
-        // TODO: more stuff which should be stubbed?
-    }
-
-    void RestoreOriginalTls() {
-        // Restore original vars/TLS
-        auto thr_vars = GetLibnxThreadVars();
-        *thr_vars = g_TlsVarsBackup;
-    }
-
-}
 
 extern "C" {
 
@@ -63,6 +19,8 @@ extern "C" {
 namespace {
 
     vmod::crt0::LoaderContext g_LoaderContext;
+
+    u8 g_TlsTp[0x100] = {};
 
     std::vector<vmod::dyn::ModuleInfo> g_BuiltinModules;
     std::vector<vmod::dyn::ModuleInfo> g_Modules;
@@ -325,19 +283,21 @@ namespace {
 namespace vmod {
 
     void OnStartup(vmod::crt0::LoaderContext *&loader_ctx) {
-        StubLibnxThreadVars();
+        // vboot sent us the main thread handle in a barebones context
+        const auto main_thread_h = loader_ctx->main_thread_h;
+
+        // Set our own tls-tp fake buffer and reent ptr so that they don't point to random game memory after restoring pre-boot code (after boot code is removed)
+        // The TLR should already be libnx-style
+        auto tlr_ptr = tlr::GetThreadLocalRegion();
+        VMOD_ASSERT_TRUE(tlr_ptr->IsLibnxFormat());
+        tlr_ptr->libnx_thread_vars.tls_tp = g_TlsTp;
+        tlr_ptr->libnx_thread_vars.reent = _impure_ptr;
 
         // We're the loader, we are the ones who provide the context ;)
-
-        // vboot sent us the main thread handle in a barebones context
-        g_LoaderContext.main_thread_h = loader_ctx->main_thread_h;
+        g_LoaderContext.main_thread_h = main_thread_h;
 
         // Actually provide it for vmod libs
         loader_ctx = &g_LoaderContext;
-    }
-
-    void OnCleanup() {
-        RestoreOriginalTls();
     }
 
     void Main() {
@@ -348,10 +308,12 @@ namespace vmod {
         VMOD_RC_ASSERT(sf::fs::Initialize());
         VMOD_ON_SCOPE_EXIT { sf::fs::Finalize(); };
 
-        VMOD_RC_ASSERT(sf::fs::MountSdCard());
-        VMOD_ON_SCOPE_EXIT { sf::fs::UnmountSdCard(); };
+        FsFileSystem sd_fs;
+        VMOD_RC_ASSERT(sf::fs::OpenSdCardFileSystem(sd_fs));
+        VMOD_ON_SCOPE_EXIT { fsFsClose(&sd_fs); };
 
-        VMOD_ASSERT_TRUE(sdlog::Initialize("sdmc:/vax/vloader.log"));
+        constexpr const char LogPath[FS_MAX_PATH] = "/vax/vloader.log";
+        VMOD_RC_ASSERT(sdlog::Initialize(LogPath, sd_fs));
         VMOD_ON_SCOPE_EXIT { sdlog::Finalize(); };
 
         VMOD_SD_LOG_LN("vloader --- alive! main thread handle: 0x%X", vmod::crt0::GetLoaderContext()->main_thread_h);
@@ -373,8 +335,9 @@ namespace vmod {
         // Finally, finish with the injection and run the original code
         auto orig_code_addr = reinterpret_cast<void(*)(void*, Handle)>(g_LoaderContext.code_start_addr);
         orig_code_addr(nullptr, g_LoaderContext.main_thread_h);
-        __builtin_unreachable();
-        // vmod::crt0::SetReturnFunction(reinterpret_cast<LoaderReturnFn>(g_LoaderContext.code_start_addr));
+
+        // Should be unreachable
+        VMOD_RC_ASSERT(0xDEADBEEF);
     }
 
 }
