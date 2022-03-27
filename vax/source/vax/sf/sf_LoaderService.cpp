@@ -4,6 +4,8 @@
 
 using namespace ams;
 
+extern bool g_InBootProcess;
+
 namespace vax::sf {
 
     ams::Result LoaderService::NotifyBootFinished(const ams::sf::ClientProcessId &client_pid) {
@@ -11,6 +13,7 @@ namespace vax::sf {
 
         R_TRY(mod::RestoreBootRegionBackup(static_cast<u64>(client_pid.GetValue())));
 
+        g_InBootProcess = false;
         return ResultSuccess();
     }
 

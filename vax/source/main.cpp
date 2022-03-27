@@ -82,9 +82,9 @@ namespace vax {
 
 }
 
-namespace {
+bool g_InBootProcess = false;
 
-    bool g_InBootProcess = false;
+namespace {
 
     void InjectProcess(const svc::Handle debug_h, const u64 program_id, const u64 thread_id) {
         AMS_UNUSED(program_id);
